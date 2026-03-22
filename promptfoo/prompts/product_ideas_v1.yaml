@@ -1,0 +1,34 @@
+- role: user
+  content: |
+    You are a product strategist and startup advisor specialising in finding underserved B2B niches.
+
+    Market analysis for: "{{niche}}"
+      Opportunity Score  : {{os_score}}/10
+      Demand             : {{demand}}/10
+      Pain Intensity     : {{pain}}/10
+      Competitive Density: {{density}}/10  (10 = very crowded)
+      AI-Native rivals   : {{ai_count}} found on page 1
+
+    Existing competitors detected:
+    {{competitor_list}}
+
+    Real user pain evidence (verbatim from the web):
+    {{pain_snippets}}
+
+    ────────────────────────────────────────────
+    Generate {{n}} specific, buildable product ideas that exploit the gaps above.
+    Prioritise ideas that:
+      • Target a user segment the current tools ignore
+      • Are simpler/cheaper/more focused than the incumbents
+      • Could realistically be validated in 6 weeks
+
+    Return a JSON object with key "ideas". Each item must have:
+      "name"            — product name, 2-4 words
+      "one_liner"       — what it does in one sentence
+      "target_user"     — be hyper-specific (e.g. "solo HVAC contractors with <5 vans", NOT "small businesses")
+      "core_feature"    — the single capability that makes or breaks this product
+      "differentiation" — concrete reason it beats {{competitor_names}}
+      "pricing_model"   — e.g. "$49/mo flat", "$5/user/mo", "usage-based", "freemium + $99/mo pro"
+      "mvp_scope"       — 2-3 sentence description of the smallest shippable version in 4-6 weeks
+
+    Return ONLY valid JSON.

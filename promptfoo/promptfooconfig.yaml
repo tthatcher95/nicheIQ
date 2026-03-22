@@ -1,0 +1,227 @@
+# Market Gap Engine — Prompt Evaluation Suite
+# Run: npx promptfoo@latest eval
+# View: npx promptfoo@latest view
+
+description: "Market Gap Engine prompt quality evaluation"
+
+# Results output
+outputPath: ./results.json
+
+# ---------------------------------------------------------------------------
+# Providers — compare cheap vs capable model on the same prompts
+# ---------------------------------------------------------------------------
+providers:
+  - id: openai:gpt-4o-mini
+    label: "gpt-4o-mini"
+  - id: openai:gpt-4o
+    label: "gpt-4o"
+
+# ---------------------------------------------------------------------------
+# Prompts under evaluation
+# ---------------------------------------------------------------------------
+prompts:
+  - id: pain_v1
+    label: "Pain Scorer v1 (word anchors)"
+    file: prompts/pain_scorer_v1.yaml
+
+  - id: pain_v2
+    label: "Pain Scorer v2 (dollar-band rubric)"
+    file: prompts/pain_scorer_v2.yaml
+
+  - id: ideas_v1
+    label: "Product Ideas v1 (current)"
+    file: prompts/product_ideas_v1.yaml
+
+  - id: ideas_v2
+    label: "Product Ideas v2 (anti-patterns + validation Q)"
+    file: prompts/product_ideas_v2.yaml
+
+# ---------------------------------------------------------------------------
+# Test cases
+# ---------------------------------------------------------------------------
+tests:
+
+  # ── Pain Scorer Suite ─────────────────────────────────────────────────────
+  # Only run these against pain_v1 and pain_v2
+
+  - description: "[pain] HIGH — compliance fine + audit failure"
+    prompts: [pain_v1, pain_v2]
+    vars:
+      niche: "HIPAA compliance documentation for small medical practices"
+      snippets: |
+        - We received a $47,000 OCR fine because we couldn't produce access logs on demand
+        - Our compliance officer quit; the manual tracking process was unmanageable
+        - Two practices in our network lost Medicare certification over documentation failures
+        - Spent 3 weeks manually compiling records for an unannounced audit, nearly missed the deadline
+    assert:
+      - type: regex
+        value: "^\\d+$"
+        description: "Must return a single integer only"
+      - type: javascript
+        value: "const n = parseInt(output.trim()); return !isNaN(n) && n >= 7;"
+        description: "Score must be 7-10 for severe compliance + fine risk"
+
+  - description: "[pain] MEDIUM — manual AP reconciliation with known dollar loss"
+    prompts: [pain_v1, pain_v2]
+    vars:
+      niche: "contractor invoice reconciliation"
+      snippets: |
+        - Takes our AP team 2 full days every month to reconcile contractor invoices with POs
+        - We overpaid contractors $8,000 last quarter due to duplicate invoice errors
+        - Three people manually cross-checking spreadsheets every billing cycle
+        - Lost a vendor relationship over a billing dispute we couldn't document
+    assert:
+      - type: regex
+        value: "^\\d+$"
+        description: "Must return a single integer only"
+      - type: javascript
+        value: "const n = parseInt(output.trim()); return !isNaN(n) && n >= 4 && n <= 7;"
+        description: "Score must be 4-7 for real but non-critical operational cost"
+
+  - description: "[pain] LOW — cosmetic UI preference, no financial impact"
+    prompts: [pain_v1, pain_v2]
+    vars:
+      niche: "calendar app dark mode"
+      snippets: |
+        - Wish my calendar had a dark mode, easier on my eyes at night
+        - Would be nice to have a darker theme option
+        - The bright white interface is a bit harsh
+    assert:
+      - type: regex
+        value: "^\\d+$"
+        description: "Must return a single integer only"
+      - type: javascript
+        value: "const n = parseInt(output.trim()); return !isNaN(n) && n <= 3;"
+        description: "Score must be 1-3 for cosmetic preference with no real cost"
+
+  - description: "[pain] BOUNDARY — output discipline: must be integer, no extra text"
+    prompts: [pain_v1, pain_v2]
+    vars:
+      niche: "fleet fuel tracking for delivery companies"
+      snippets: |
+        - We lose about $2,000/month in untracked fuel usage across 12 vans
+        - Drivers fill out paper fuel logs that take 20 mins each to transcribe into Excel
+        - Had a $500 discrepancy we couldn't explain to the CFO last quarter
+    assert:
+      - type: regex
+        value: "^\\d+$"
+        description: "Must be ONLY a digit — no explanation, no score prefix, no newline"
+
+  # ── Product Ideas Suite ───────────────────────────────────────────────────
+  # Only run these against ideas_v1 and ideas_v2
+
+  - description: "[ideas] JSON structure is valid and complete"
+    prompts: [ideas_v1, ideas_v2]
+    vars:
+      niche: "HVAC contractor job scheduling"
+      os_score: "6.8"
+      demand: "6.5"
+      pain: "7.0"
+      density: "4.2"
+      ai_count: "1"
+      competitor_list: "  • servicetitan.com\n  • jobber.com\n  • housecallpro.com"
+      pain_snippets: |
+        - "We lose 2-3 jobs a week because dispatch is still done over group texts"
+        - "ServiceTitan is $500/month minimum — way too expensive for a 3-truck shop"
+        - "A scheduling conflict cost us a $4,000 commercial HVAC contract last month"
+        - "Our dispatcher quit and nobody else knows the system"
+      n: "3"
+      competitor_names: "ServiceTitan, Jobber, HouseCall Pro"
+    assert:
+      - type: is-json
+        description: "Output must be valid JSON"
+      - type: javascript
+        value: |
+          const data = JSON.parse(output);
+          return Array.isArray(data.ideas) && data.ideas.length >= 2;
+        description: "Must contain 'ideas' array with at least 2 items"
+      - type: javascript
+        value: |
+          const data = JSON.parse(output);
+          const required = ['name','one_liner','target_user','core_feature','differentiation','pricing_model','mvp_scope'];
+          return data.ideas.every(idea => required.every(k => idea[k] && idea[k].length > 0));
+        description: "Every idea must have all 7 required fields populated"
+
+  - description: "[ideas] Target users must be hyper-specific"
+    prompts: [ideas_v1, ideas_v2]
+    vars:
+      niche: "HVAC contractor job scheduling"
+      os_score: "6.8"
+      demand: "6.5"
+      pain: "7.0"
+      density: "4.2"
+      ai_count: "1"
+      competitor_list: "  • servicetitan.com\n  • jobber.com"
+      pain_snippets: |
+        - "Scheduling conflicts cost us a $4,000 commercial contract"
+        - "ServiceTitan is too expensive for a 3-truck shop"
+        - "Dispatch is done over group text — it's chaos"
+      n: "3"
+      competitor_names: "ServiceTitan, Jobber"
+    assert:
+      - type: llm-rubric
+        value: |
+          Look at the "target_user" field in each idea.
+          PASS if every target_user is specific: it names a job role, company size, OR a concrete situation.
+          Examples of PASS: "solo HVAC contractors running <5 vans", "2-10 person plumbing companies priced out of ServiceTitan"
+          Examples of FAIL: "small businesses", "companies", "contractors", "users", "businesses of all sizes"
+          Respond with PASS or FAIL and one sentence of reasoning.
+        description: "All target_user fields must be hyper-specific, not generic"
+
+  - description: "[ideas] MVP scope must be realistic for 1-2 devs in 4-6 weeks"
+    prompts: [ideas_v1, ideas_v2]
+    vars:
+      niche: "HVAC contractor job scheduling"
+      os_score: "6.8"
+      demand: "6.5"
+      pain: "7.0"
+      density: "4.2"
+      ai_count: "1"
+      competitor_list: "  • servicetitan.com\n  • jobber.com"
+      pain_snippets: |
+        - "Lose jobs because dispatch is done over text messages"
+        - "Too expensive for small shops"
+        - "Scheduling conflicts happen weekly"
+      n: "3"
+      competitor_names: "ServiceTitan, Jobber"
+    assert:
+      - type: llm-rubric
+        value: |
+          Look at the "mvp_scope" field in each idea.
+          PASS if each MVP scope describes a focused, minimal product — at most 3-4 features
+          that 1-2 developers could ship in 4-6 weeks.
+          FAIL if any MVP scope reads like a full platform, mentions AI/ML as a core component,
+          lists more than 5 features, or uses vague language like "full suite" or "complete solution".
+          Respond with PASS or FAIL and one sentence of reasoning.
+        description: "MVP scopes must be tight, realistic, and buildable in 4-6 weeks"
+
+  - description: "[ideas] v2 validation_question field is present and specific"
+    prompts: [ideas_v2]
+    vars:
+      niche: "HVAC contractor job scheduling"
+      os_score: "6.8"
+      demand: "6.5"
+      pain: "7.0"
+      density: "4.2"
+      ai_count: "1"
+      competitor_list: "  • servicetitan.com\n  • jobber.com"
+      pain_snippets: |
+        - "Lose jobs because dispatch is done over text messages"
+        - "Too expensive for small shops"
+      n: "3"
+      competitor_names: "ServiceTitan, Jobber"
+    assert:
+      - type: javascript
+        value: |
+          const data = JSON.parse(output);
+          return data.ideas.every(i => i.validation_question && i.validation_question.length > 20);
+        description: "v2 must include a non-trivial validation_question on every idea"
+      - type: llm-rubric
+        value: |
+          Look at the "validation_question" field in each idea.
+          A good validation question is a YES/NO question a founder can answer in 30 days
+          WITHOUT writing code — typically by talking to customers or running a landing page test.
+          PASS if all validation questions are specific, testable, and pre-code.
+          FAIL if any are vague ("Is this a good idea?") or require building the product first.
+          Respond with PASS or FAIL and one sentence of reasoning.
+        description: "Validation questions must be specific, pre-code, and testable in 30 days"

@@ -1,0 +1,41 @@
+- role: user
+  content: |
+    You are a product strategist and startup advisor specialising in finding underserved B2B niches.
+
+    Market analysis for: "{{niche}}"
+      Opportunity Score  : {{os_score}}/10
+      Demand             : {{demand}}/10
+      Pain Intensity     : {{pain}}/10
+      Competitive Density: {{density}}/10  (10 = very crowded)
+      AI-Native rivals   : {{ai_count}} found on page 1
+
+    Existing competitors detected:
+    {{competitor_list}}
+
+    Real user pain evidence (verbatim from the web):
+    {{pain_snippets}}
+
+    ────────────────────────────────────────────
+    Generate {{n}} specific, buildable product ideas that exploit the gaps above.
+
+    ANTI-PATTERNS — do NOT do any of the following:
+      ✗ Suggest "AI-powered X" unless AI directly solves the stated pain
+      ✗ Use vague target users like "small businesses" or "companies"
+      ✗ Describe an MVP that needs a team of 5+ or more than 6 weeks
+      ✗ Clone an existing competitor without a concrete differentiator
+      ✗ Price at 90% below incumbents — that's a race to zero, not a strategy
+
+    Return a JSON object with key "ideas". Each item must have:
+      "name"               — product name, 2-4 words
+      "one_liner"          — what it does in one sentence
+      "target_user"        — specific job title + company size + situation
+                             (e.g. "solo HVAC contractors running <5 vans priced out of ServiceTitan")
+      "core_feature"       — the ONE capability that makes or breaks this product
+      "differentiation"    — one specific, concrete reason it beats {{competitor_names}}
+      "pricing_model"      — specific: "$49/mo flat", "$5/user/mo + $0.10/job", "freemium + $99/mo pro"
+      "mvp_scope"          — exactly 3 features you ship in 4-6 weeks, nothing more
+      "validation_question"— the single yes/no question a founder must answer in 30 days
+                             to know this is worth building (e.g. "Can I get 10 HVAC contractors
+                             to pay $49/mo before I write a line of code?")
+
+    Return ONLY valid JSON.
